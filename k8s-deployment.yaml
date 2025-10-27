@@ -44,7 +44,7 @@ spec:
               name: cosmos-secrets
               key: key
         - name: COSMOS_DEFAULT_DB
-          value: "ureca_evo"
+          value: "ureca_evo"  # Change this to your database name or use ConfigMap
         - name: JAVA_OPTS
           value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
         resources:

@@ -8,7 +8,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT:-https://localhost:8081}
+      # Set COSMOS_ENDPOINT to your Cosmos DB account endpoint
+      # For local testing with Cosmos DB Emulator, use: https://localhost:8081
+      # For Azure Cosmos DB, use: https://your-account.documents.azure.com:443/
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT:-}
       - COSMOS_KEY=${COSMOS_KEY}
       - COSMOS_DEFAULT_DB=${COSMOS_DEFAULT_DB:-ureca_evo}
       - LOGGING_LEVEL_COM_URECA_COSMOSDB=${LOG_LEVEL:-DEBUG}
