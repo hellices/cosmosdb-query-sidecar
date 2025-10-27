@@ -1,0 +1,115 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: cosmos-secrets
+  namespace: default
+type: Opaque
+stringData:
+  endpoint: "https://your-account.documents.azure.com:443/"
+  key: "your-primary-key-here"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosmosdb-query-sidecar
+  namespace: default
+  labels:
+    app: cosmosdb-query-sidecar
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cosmosdb-query-sidecar
+  template:
+    metadata:
+      labels:
+        app: cosmosdb-query-sidecar
+    spec:
+      containers:
+      - name: sidecar
+        image: your-registry/cosmosdb-query-sidecar:1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: COSMOS_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: cosmos-secrets
+              key: endpoint
+        - name: COSMOS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: cosmos-secrets
+              key: key
+        - name: COSMOS_DEFAULT_DB
+          value: "ureca_evo"
+        - name: JAVA_OPTS
+          value: "-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 40
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cosmosdb-query-sidecar
+  namespace: default
+  labels:
+    app: cosmosdb-query-sidecar
+spec:
+  selector:
+    app: cosmosdb-query-sidecar
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cosmosdb-query-sidecar-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cosmosdb-query-sidecar
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

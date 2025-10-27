@@ -38,3 +38,6 @@ out/
 
 # Spring Boot
 .DS_Store
+
+# Environment
+.env
