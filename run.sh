@@ -44,7 +44,10 @@ case $COMMAND in
     
     docker-build)
         echo "🐳 Building Docker image..."
-        docker build -t cosmosdb-query-sidecar:1.0.0 .
+        echo "Building JAR first..."
+        ./gradlew clean build -x test
+        echo "Building Docker image with pre-built JAR..."
+        docker build -f Dockerfile.prebuilt -t cosmosdb-query-sidecar:1.0.0 .
         echo "✅ Docker image built: cosmosdb-query-sidecar:1.0.0"
         ;;
     

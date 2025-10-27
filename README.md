@@ -44,8 +44,27 @@ The service will start on port 8080.
 
 ### Docker
 
+#### Option 1: Using Pre-built JAR (Recommended)
+
 ```bash
-# Build image
+# First, build the JAR locally
+./gradlew build
+
+# Build image from pre-built JAR
+docker build -f Dockerfile.prebuilt -t cosmosdb-query-sidecar:1.0.0 .
+
+# Run container
+docker run -p 8080:8080 \
+  -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_KEY=your-primary-key \
+  -e COSMOS_DEFAULT_DB=ureca_evo \
+  cosmosdb-query-sidecar:1.0.0
+```
+
+#### Option 2: Multi-stage Build (if network allows)
+
+```bash
+# Build image (includes build stage)
 docker build -t cosmosdb-query-sidecar:1.0.0 .
 
 # Run container
