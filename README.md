@@ -12,6 +12,7 @@ A lightweight Spring Boot sidecar service that provides a single HTTP endpoint f
 - ✅ Continuation token support for paging
 - ✅ Standardized JSON response format
 - ✅ Docker containerization ready
+- ✅ Swagger UI for development (optional)
 
 ## Quick Start
 
@@ -63,6 +64,28 @@ This mode is ideal for production deployments using Managed Identity or developm
 ```
 
 The service will start on port 8080.
+
+#### Swagger UI (Development Mode)
+
+For local development, you can enable Swagger UI to explore and test the API interactively:
+
+```bash
+# Enable Swagger UI
+export SWAGGER_ENABLED=true
+
+# Run the service
+./gradlew bootRun
+```
+
+Once running, access Swagger UI at: **http://localhost:8080/swagger-ui.html**
+
+Swagger UI provides:
+- Interactive API documentation
+- Try-it-out functionality to test endpoints
+- Request/response examples
+- Model schemas
+
+**Important:** Swagger UI is disabled by default (`SWAGGER_ENABLED=false`) and should **only be enabled in development environments**. Do not enable it in production deployments for security and performance reasons.
 
 ### Docker
 
