@@ -36,37 +36,31 @@ public class CosmosQueryService {
     public Mono<QueryResponse> executeQuery(String containerName, QueryRequest request, 
                                      String partitionKey, Integer maxItemCount, 
                                      String continuationToken) {
-        try {
-            log.debug("Executing query on container: {}, partition key: {}", containerName, partitionKey);
-            
-            CosmosAsyncDatabase database = cosmosAsyncClient.getDatabase(properties.getDefaultConfig().getDatabase());
-            CosmosAsyncContainer container = database.getContainer(containerName);
+        log.debug("Executing query on container: {}, partition key: {}", containerName, partitionKey);
+        
+        CosmosAsyncDatabase database = cosmosAsyncClient.getDatabase(properties.getDefaultConfig().getDatabase());
+        CosmosAsyncContainer container = database.getContainer(containerName);
 
-            // Build SQL query spec with parameters
-            SqlQuerySpec querySpec = buildQuerySpec(request);
+        // Build SQL query spec with parameters
+        SqlQuerySpec querySpec = buildQuerySpec(request);
 
-            // Configure query options
-            CosmosQueryRequestOptions options = new CosmosQueryRequestOptions();
-            if (partitionKey != null) {
-                options.setPartitionKey(new PartitionKey(partitionKey));
-                log.debug("Using partition key: {}", partitionKey);
-            }
-            if (maxItemCount != null && maxItemCount > 0) {
-                options.setMaxDegreeOfParallelism(maxItemCount);
-            }
-
-            // Execute query reactively
-            return container.queryItems(querySpec, options, Object.class)
-                    .byPage(continuationToken, maxItemCount)
-                    .next() // Get the first page
-                    .map(this::buildSuccessResponse)
-                    .onErrorResume(CosmosException.class, this::buildErrorResponseMono)
-                    .onErrorResume(Exception.class, this::buildGenericErrorResponseMono);
-
-        } catch (Exception e) {
-            log.error("Unexpected error executing query", e);
-            return buildGenericErrorResponseMono(e);
+        // Configure query options
+        CosmosQueryRequestOptions options = new CosmosQueryRequestOptions();
+        if (partitionKey != null) {
+            options.setPartitionKey(new PartitionKey(partitionKey));
+            log.debug("Using partition key: {}", partitionKey);
         }
+        if (maxItemCount != null && maxItemCount > 0) {
+            options.setMaxDegreeOfParallelism(maxItemCount);
+        }
+
+        // Execute query reactively
+        return container.queryItems(querySpec, options, Object.class)
+                .byPage(continuationToken, maxItemCount)
+                .next() // Get the first page
+                .map(this::buildSuccessResponse)
+                .onErrorResume(CosmosException.class, this::buildErrorResponseMono)
+                .onErrorResume(Exception.class, this::buildGenericErrorResponseMono);
     }
 
     private QueryResponse buildSuccessResponse(FeedResponse<Object> feedResponse) {
@@ -156,11 +150,12 @@ public class CosmosQueryService {
     }
 
     private Mono<QueryResponse> buildGenericErrorResponseMono(Exception e) {
-        log.error("Unexpected error executing query", e);
         return Mono.just(buildGenericErrorResponse(e));
     }
 
     private QueryResponse buildGenericErrorResponse(Exception e) {
+        log.error("Unexpected error executing query", e);
+        
         ErrorInfo errorInfo = ErrorInfo.builder()
                 .code("UpstreamError")
                 .message(e.getMessage() != null ? e.getMessage() : "Internal server error")
