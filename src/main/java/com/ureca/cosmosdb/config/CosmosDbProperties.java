@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
 public class CosmosDbProperties {
     private String endpoint;
     private String key;
+    private Auth auth = new Auth();
     private DefaultConfig defaultConfig = new DefaultConfig();
     private Connection connection = new Connection();
 
@@ -17,6 +18,10 @@ public class CosmosDbProperties {
 
     public String getKey() {
         return key;
+    }
+
+    public Auth getAuth() {
+        return auth;
     }
 
     public DefaultConfig getDefaultConfig() {
@@ -33,6 +38,10 @@ public class CosmosDbProperties {
 
     public void setKey(String key) {
         this.key = key;
+    }
+
+    public void setAuth(Auth auth) {
+        this.auth = auth;
     }
 
     public void setDefaultConfig(DefaultConfig defaultConfig) {
@@ -52,6 +61,18 @@ public class CosmosDbProperties {
 
         public void setDatabase(String database) {
             this.database = database;
+        }
+    }
+
+    public static class Auth {
+        private String mode = "KEY";
+
+        public String getMode() {
+            return mode;
+        }
+
+        public void setMode(String mode) {
+            this.mode = mode;
         }
     }
 

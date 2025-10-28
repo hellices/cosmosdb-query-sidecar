@@ -5,6 +5,7 @@ A lightweight Spring Boot sidecar service that provides a single HTTP endpoint f
 ## Features
 
 - ✅ Single endpoint: `POST /cosmos/v1/query/{container}`
+- ✅ Multiple authentication modes (Key-based and DefaultAzureCredential)
 - ✅ Direct mode connection for reduced latency
 - ✅ Partition key support for optimized queries
 - ✅ Request Unit (RU) tracking and diagnostics
@@ -22,13 +23,34 @@ A lightweight Spring Boot sidecar service that provides a single HTTP endpoint f
 
 ### Configuration
 
-Set the following environment variables:
+#### Authentication Modes
 
+The sidecar supports two authentication modes:
+
+**1. Key-based Authentication (Default)**
 ```bash
 export COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/
+export COSMOS_AUTH_MODE=KEY
 export COSMOS_KEY=your-primary-key
 export COSMOS_DEFAULT_DB=ureca_evo
 ```
+
+**2. DefaultAzureCredential (Managed Identity, Azure CLI, etc.)**
+```bash
+export COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/
+export COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL
+export COSMOS_DEFAULT_DB=ureca_evo
+```
+
+When using `DEFAULT_AZURE_CREDENTIAL`, the authentication will follow Azure's default credential chain:
+1. Environment variables (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)
+2. Managed Identity (when running in Azure)
+3. Azure CLI (for local development)
+4. Azure PowerShell
+5. Interactive browser login
+
+This mode is ideal for production deployments using Managed Identity or development with Azure CLI authentication.
+
 
 ### Build and Run
 
@@ -46,6 +68,7 @@ The service will start on port 8080.
 
 #### Option 1: Using Pre-built JAR (Recommended)
 
+**With Key-based Authentication:**
 ```bash
 # First, build the JAR locally
 ./gradlew build
@@ -56,13 +79,30 @@ docker build -f Dockerfile.prebuilt -t cosmosdb-query-sidecar:1.0.0 .
 # Run container
 docker run -p 8080:8080 \
   -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=KEY \
   -e COSMOS_KEY=your-primary-key \
   -e COSMOS_DEFAULT_DB=ureca_evo \
   cosmosdb-query-sidecar:1.0.0
 ```
 
+**With DefaultAzureCredential:**
+```bash
+# Build image from pre-built JAR
+docker build -f Dockerfile.prebuilt -t cosmosdb-query-sidecar:1.0.0 .
+
+# Run container (with Azure CLI credentials mounted)
+docker run -p 8080:8080 \
+  -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL \
+  -e COSMOS_DEFAULT_DB=ureca_evo \
+  -v ~/.azure:/root/.azure:ro \
+  cosmosdb-query-sidecar:1.0.0
+```
+
+
 #### Option 2: Multi-stage Build (if network allows)
 
+**With Key-based Authentication:**
 ```bash
 # Build image (includes build stage)
 docker build -t cosmosdb-query-sidecar:1.0.0 .
@@ -70,10 +110,26 @@ docker build -t cosmosdb-query-sidecar:1.0.0 .
 # Run container
 docker run -p 8080:8080 \
   -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=KEY \
   -e COSMOS_KEY=your-primary-key \
   -e COSMOS_DEFAULT_DB=ureca_evo \
   cosmosdb-query-sidecar:1.0.0
 ```
+
+**With DefaultAzureCredential:**
+```bash
+# Build image (includes build stage)
+docker build -t cosmosdb-query-sidecar:1.0.0 .
+
+# Run container
+docker run -p 8080:8080 \
+  -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL \
+  -e COSMOS_DEFAULT_DB=ureca_evo \
+  -v ~/.azure:/root/.azure:ro \
+  cosmosdb-query-sidecar:1.0.0
+```
+
 
 ## API Usage
 
@@ -218,6 +274,8 @@ docker push your-registry/cosmosdb-query-sidecar:1.0.0
 
 ### 3. Deploy to Kubernetes
 
+#### Option A: Using Key-based Authentication
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -244,6 +302,8 @@ spec:
             secretKeyRef:
               name: cosmos-secrets
               key: endpoint
+        - name: COSMOS_AUTH_MODE
+          value: "KEY"
         - name: COSMOS_KEY
           valueFrom:
             secretKeyRef:
@@ -284,12 +344,93 @@ spec:
   type: ClusterIP
 ```
 
+#### Option B: Using Managed Identity (DefaultAzureCredential)
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosmosdb-query-sidecar
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: cosmosdb-query-sidecar
+  template:
+    metadata:
+      labels:
+        app: cosmosdb-query-sidecar
+        azure.workload.identity/use: "true"  # Enable workload identity
+    spec:
+      serviceAccountName: cosmosdb-sidecar-sa
+      containers:
+      - name: sidecar
+        image: your-registry/cosmosdb-query-sidecar:1.0.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: COSMOS_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: cosmos-secrets
+              key: endpoint
+        - name: COSMOS_AUTH_MODE
+          value: "DEFAULT_AZURE_CREDENTIAL"
+        - name: COSMOS_DEFAULT_DB
+          value: "ureca_evo"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 40
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 20
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cosmosdb-query-sidecar
+spec:
+  selector:
+    app: cosmosdb-query-sidecar
+  ports:
+  - port: 8080
+    targetPort: 8080
+  type: ClusterIP
+```
+
+**Note:** For Managed Identity, you need to:
+1. Create an Azure User Assigned Managed Identity
+2. Grant it access to your Cosmos DB account (Cosmos DB Data Contributor role)
+3. Set up Workload Identity federation between the Kubernetes service account and the Azure identity
+
 ### 4. Create Secrets
 
+**For Key-based Authentication:**
 ```bash
 kubectl create secret generic cosmos-secrets \
   --from-literal=endpoint=https://your-account.documents.azure.com:443/ \
   --from-literal=key=your-primary-key
+```
+
+**For Managed Identity:**
+```bash
+# Only the endpoint is needed as a secret
+kubectl create secret generic cosmos-secrets \
+  --from-literal=endpoint=https://your-account.documents.azure.com:443/
 ```
 
 ### 5. Apply Deployment
