@@ -32,6 +32,7 @@ public class CosmosDbConfig {
         // Configure authentication based on mode
         String authMode = properties.getAuth().getMode();
         if ("DEFAULT_AZURE_CREDENTIAL".equalsIgnoreCase(authMode)) {
+            // DefaultAzureCredential is created once since this bean is a singleton
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
             builder.credential(credential);
             log.info("Cosmos DB client configured with DefaultAzureCredential");

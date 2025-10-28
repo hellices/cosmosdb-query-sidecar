@@ -7,6 +7,9 @@ spring:
 
 # Cosmos DB Configuration
 cosmos:
+  # Endpoint URL for Azure Cosmos DB or Cosmos DB Emulator
+  # Production: https://your-account.documents.azure.com:443/
+  # Local Emulator: https://localhost:8081
   endpoint: ${COSMOS_ENDPOINT:https://localhost:8081}
   key: ${COSMOS_KEY:}
   
@@ -23,6 +26,7 @@ cosmos:
   connection:
     mode: DIRECT
     maxConnections: 100
+    # Request timeout in ISO-8601 duration format (e.g., PT60S = 60 seconds)
     requestTimeout: PT60S
 
 # Actuator
