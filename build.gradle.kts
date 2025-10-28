@@ -16,8 +16,8 @@ repositories {
 }
 
 dependencies {
-    // Spring Boot
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    // Spring Boot - using WebFlux for reactive support
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     
     // Cosmos DB Java SDK v4

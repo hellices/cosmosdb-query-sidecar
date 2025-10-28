@@ -1,6 +1,6 @@
 package com.ureca.cosmosdb.config;
 
-import com.azure.cosmos.CosmosClient;
+import com.azure.cosmos.CosmosAsyncClient;
 import com.azure.cosmos.CosmosClientBuilder;
 import com.azure.cosmos.DirectConnectionConfig;
 import com.azure.cosmos.GatewayConnectionConfig;
@@ -21,8 +21,8 @@ public class CosmosDbConfig {
     private final CosmosDbProperties properties;
 
     @Bean
-    public CosmosClient cosmosClient() {
-        log.info("Initializing Cosmos DB client with endpoint: {}", properties.getEndpoint());
+    public CosmosAsyncClient cosmosAsyncClient() {
+        log.info("Initializing Cosmos DB async client with endpoint: {}", properties.getEndpoint());
         log.info("Authentication mode: {}", properties.getAuth().getMode());
         log.info("Connection mode: {}", properties.getConnection().getMode());
         
@@ -35,13 +35,13 @@ public class CosmosDbConfig {
             // DefaultAzureCredential is created once since this bean is a singleton
             DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
             builder.credential(credential);
-            log.info("Cosmos DB client configured with DefaultAzureCredential");
+            log.info("Cosmos DB async client configured with DefaultAzureCredential");
         } else if ("KEY".equalsIgnoreCase(authMode)) {
             if (properties.getKey() == null || properties.getKey().isEmpty()) {
                 throw new IllegalArgumentException("cosmos.key must be set when auth.mode is KEY");
             }
             builder.key(properties.getKey());
-            log.info("Cosmos DB client configured with Key-based authentication");
+            log.info("Cosmos DB async client configured with Key-based authentication");
         } else {
             throw new IllegalArgumentException("Invalid auth.mode: " + authMode + ". Valid values are: KEY, DEFAULT_AZURE_CREDENTIAL");
         }
@@ -50,13 +50,13 @@ public class CosmosDbConfig {
         if ("DIRECT".equalsIgnoreCase(properties.getConnection().getMode())) {
             DirectConnectionConfig directConfig = DirectConnectionConfig.getDefaultConfig();
             builder.directMode(directConfig);
-            log.info("Cosmos DB client configured with Direct mode");
+            log.info("Cosmos DB async client configured with Direct mode");
         } else {
             GatewayConnectionConfig gatewayConfig = GatewayConnectionConfig.getDefaultConfig();
             builder.gatewayMode(gatewayConfig);
-            log.info("Cosmos DB client configured with Gateway mode");
+            log.info("Cosmos DB async client configured with Gateway mode");
         }
 
-        return builder.buildClient();
+        return builder.buildAsyncClient();
     }
 }
