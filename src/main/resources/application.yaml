@@ -1,0 +1,47 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cosmosdb-query-sidecar
+
+# Cosmos DB Configuration
+cosmos:
+  # Endpoint URL for Azure Cosmos DB or Cosmos DB Emulator
+  # Production: https://your-account.documents.azure.com:443/
+  # Local Emulator: https://localhost:8081
+  endpoint: ${COSMOS_ENDPOINT:https://localhost:8081}
+  key: ${COSMOS_KEY:}
+  
+  # Authentication Mode: KEY or DEFAULT_AZURE_CREDENTIAL
+  # KEY: Uses key-based authentication (requires cosmos.key to be set)
+  # DEFAULT_AZURE_CREDENTIAL: Uses Azure Default credential chain (Managed Identity, Azure CLI, etc.)
+  auth:
+    mode: ${COSMOS_AUTH_MODE:KEY}
+  
+  default:
+    database: ${COSMOS_DEFAULT_DB:ureca_evo}
+  
+  # Connection Settings - Direct Mode
+  connection:
+    mode: DIRECT
+    maxConnections: 100
+    # Request timeout in ISO-8601 duration format (e.g., PT60S = 60 seconds)
+    requestTimeout: PT60S
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.ureca.cosmosdb: DEBUG
+    com.azure.cosmos: INFO

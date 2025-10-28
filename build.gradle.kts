@@ -23,6 +23,9 @@ dependencies {
     // Cosmos DB Java SDK v4
     implementation("com.azure:azure-cosmos:4.53.1")
     
+    // Azure Identity for DefaultAzureCredential
+    implementation("com.azure:azure-identity:1.11.1")
+    
     // JSON processing
     implementation("com.fasterxml.jackson.core:jackson-databind")
     

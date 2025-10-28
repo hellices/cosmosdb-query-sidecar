@@ -4,6 +4,8 @@ import com.azure.cosmos.CosmosClient;
 import com.azure.cosmos.CosmosClientBuilder;
 import com.azure.cosmos.DirectConnectionConfig;
 import com.azure.cosmos.GatewayConnectionConfig;
+import com.azure.identity.DefaultAzureCredential;
+import com.azure.identity.DefaultAzureCredentialBuilder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
@@ -21,11 +23,28 @@ public class CosmosDbConfig {
     @Bean
     public CosmosClient cosmosClient() {
         log.info("Initializing Cosmos DB client with endpoint: {}", properties.getEndpoint());
+        log.info("Authentication mode: {}", properties.getAuth().getMode());
         log.info("Connection mode: {}", properties.getConnection().getMode());
         
         CosmosClientBuilder builder = new CosmosClientBuilder()
-                .endpoint(properties.getEndpoint())
-                .key(properties.getKey());
+                .endpoint(properties.getEndpoint());
+
+        // Configure authentication based on mode
+        String authMode = properties.getAuth().getMode();
+        if ("DEFAULT_AZURE_CREDENTIAL".equalsIgnoreCase(authMode)) {
+            // DefaultAzureCredential is created once since this bean is a singleton
+            DefaultAzureCredential credential = new DefaultAzureCredentialBuilder().build();
+            builder.credential(credential);
+            log.info("Cosmos DB client configured with DefaultAzureCredential");
+        } else if ("KEY".equalsIgnoreCase(authMode)) {
+            if (properties.getKey() == null || properties.getKey().isEmpty()) {
+                throw new IllegalArgumentException("cosmos.key must be set when auth.mode is KEY");
+            }
+            builder.key(properties.getKey());
+            log.info("Cosmos DB client configured with Key-based authentication");
+        } else {
+            throw new IllegalArgumentException("Invalid auth.mode: " + authMode + ". Valid values are: KEY, DEFAULT_AZURE_CREDENTIAL");
+        }
 
         // Configure Direct mode or Gateway mode
         if ("DIRECT".equalsIgnoreCase(properties.getConnection().getMode())) {
