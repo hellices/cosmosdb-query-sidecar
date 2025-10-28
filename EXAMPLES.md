@@ -10,6 +10,9 @@ This document provides detailed examples of using the Cosmos DB Query Sidecar AP
 4. [Pagination](#pagination)
 5. [Error Handling](#error-handling)
 6. [Performance Optimization](#performance-optimization)
+7. [Authentication Configuration](#authentication-configuration)
+8. [Migration from Direct Cosmos DB SDK](#migration-from-direct-cosmos-db-sdk)
+9. [Monitoring & Observability](#monitoring--observability)
 
 ---
 
@@ -508,6 +511,128 @@ result = client.query(
 )
 
 print(f"Found {result['data']['count']} results ({result['cosmos']['ru']} RU)")
+```
+
+---
+
+## Authentication Configuration
+
+The sidecar supports two authentication modes that can be configured via environment variables without code changes.
+
+### Key-based Authentication (Default)
+
+Most common for development and testing:
+
+```bash
+export COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/
+export COSMOS_AUTH_MODE=KEY
+export COSMOS_KEY=your-primary-or-secondary-key
+export COSMOS_DEFAULT_DB=ureca_evo
+
+# Start the sidecar
+./gradlew bootRun
+```
+
+**Docker:**
+```bash
+docker run -p 8080:8080 \
+  -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=KEY \
+  -e COSMOS_KEY=your-primary-key \
+  -e COSMOS_DEFAULT_DB=ureca_evo \
+  cosmosdb-query-sidecar:1.0.0
+```
+
+### DefaultAzureCredential (Recommended for Production)
+
+Uses Azure's credential chain - ideal for production with Managed Identity:
+
+```bash
+export COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/
+export COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL
+export COSMOS_DEFAULT_DB=ureca_evo
+
+# Start the sidecar
+./gradlew bootRun
+```
+
+**Docker (with Azure CLI credentials for local development):**
+```bash
+docker run -p 8080:8080 \
+  -e COSMOS_ENDPOINT=https://your-account.documents.azure.com:443/ \
+  -e COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL \
+  -e COSMOS_DEFAULT_DB=ureca_evo \
+  -v ~/.azure:/root/.azure:ro \
+  cosmosdb-query-sidecar:1.0.0
+```
+
+**Kubernetes (with Managed Identity / Workload Identity):**
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cosmosdb-query-sidecar
+spec:
+  template:
+    metadata:
+      labels:
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: cosmosdb-sidecar-sa
+      containers:
+      - name: sidecar
+        image: your-registry/cosmosdb-query-sidecar:1.0.0
+        env:
+        - name: COSMOS_ENDPOINT
+          value: "https://your-account.documents.azure.com:443/"
+        - name: COSMOS_AUTH_MODE
+          value: "DEFAULT_AZURE_CREDENTIAL"
+        - name: COSMOS_DEFAULT_DB
+          value: "ureca_evo"
+```
+
+**DefaultAzureCredential Chain:**
+The sidecar will try these authentication methods in order:
+1. Environment variables (AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID)
+2. Workload Identity (when running in Kubernetes with proper federation)
+3. Managed Identity (when running in Azure VM, App Service, Container Apps, etc.)
+4. Azure CLI (for local development - `az login`)
+5. Azure PowerShell
+6. Interactive browser
+
+### Switching Between Modes
+
+Simply change the `COSMOS_AUTH_MODE` environment variable:
+
+```bash
+# Development with key
+COSMOS_AUTH_MODE=KEY COSMOS_KEY=your-key ./gradlew bootRun
+
+# Production with Managed Identity
+COSMOS_AUTH_MODE=DEFAULT_AZURE_CREDENTIAL ./gradlew bootRun
+```
+
+### Required Permissions for DefaultAzureCredential
+
+When using DefaultAzureCredential, ensure your identity has appropriate Cosmos DB permissions:
+
+**Azure RBAC Roles (Recommended):**
+- `Cosmos DB Built-in Data Contributor` - For read/write access
+- `Cosmos DB Built-in Data Reader` - For read-only access
+
+**Assign role using Azure CLI:**
+```bash
+# Get your Cosmos DB account resource ID
+COSMOS_RESOURCE_ID=$(az cosmosdb show \
+  --name your-cosmos-account \
+  --resource-group your-rg \
+  --query id -o tsv)
+
+# Assign role to Managed Identity
+az role assignment create \
+  --assignee <managed-identity-client-id> \
+  --role "Cosmos DB Built-in Data Contributor" \
+  --scope $COSMOS_RESOURCE_ID
 ```
 
 ---
