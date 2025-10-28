@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/cosmos/v1")
@@ -39,7 +40,7 @@ public class CosmosQueryController {
         @ApiResponse(responseCode = "429", description = "Too many requests - rate limited by Cosmos DB"),
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
-    public ResponseEntity<QueryResponse> query(
+    public Mono<ResponseEntity<QueryResponse>> query(
             @Parameter(description = "Cosmos DB container name", required = true) @PathVariable String container,
             @Parameter(description = "Query request with SQL and parameters", required = true) @RequestBody QueryRequest request,
             @Parameter(description = "Partition key value for optimized query performance") @RequestParam(required = false) String pk,
@@ -51,28 +52,29 @@ public class CosmosQueryController {
         log.info("Received query request for container: {}, requestId: {}", container, requestId);
         log.debug("Query SQL: {}, Params: {}, PK: {}", request.getSql(), request.getParams(), pk);
 
-        QueryResponse response = queryService.executeQuery(container, request, pk, maxItemCount, ct);
+        return queryService.executeQuery(container, request, pk, maxItemCount, ct)
+                .map(response -> {
+                    // Build response with headers
+                    ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.status(determineHttpStatus(response));
+                    
+                    // Add standard headers
+                    if (response.getCosmos() != null) {
+                        responseBuilder.header("X-Cosmos-RU", String.valueOf(response.getCosmos().getRu()));
+                        responseBuilder.header("X-Cosmos-Activity-Id", response.getCosmos().getActivityId());
+                        responseBuilder.header("X-Cosmos-SubStatus", String.valueOf(response.getCosmos().getSubStatus()));
+                        
+                        if (response.getCosmos().getRetryAfterMs() != null) {
+                            responseBuilder.header("X-Cosmos-Retry-After-Ms", 
+                                    String.valueOf(response.getCosmos().getRetryAfterMs()));
+                        }
+                    }
+                    
+                    if (requestId != null) {
+                        responseBuilder.header("X-Request-Id", requestId);
+                    }
 
-        // Build response with headers
-        ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.status(determineHttpStatus(response));
-        
-        // Add standard headers
-        if (response.getCosmos() != null) {
-            responseBuilder.header("X-Cosmos-RU", String.valueOf(response.getCosmos().getRu()));
-            responseBuilder.header("X-Cosmos-Activity-Id", response.getCosmos().getActivityId());
-            responseBuilder.header("X-Cosmos-SubStatus", String.valueOf(response.getCosmos().getSubStatus()));
-            
-            if (response.getCosmos().getRetryAfterMs() != null) {
-                responseBuilder.header("X-Cosmos-Retry-After-Ms", 
-                        String.valueOf(response.getCosmos().getRetryAfterMs()));
-            }
-        }
-        
-        if (requestId != null) {
-            responseBuilder.header("X-Request-Id", requestId);
-        }
-
-        return responseBuilder.body(response);
+                    return responseBuilder.body(response);
+                });
     }
 
     private HttpStatus determineHttpStatus(QueryResponse response) {
