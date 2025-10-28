@@ -40,26 +40,13 @@ public class CosmosQueryController {
         @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public ResponseEntity<QueryResponse> query(
-            @Parameter(description = "Cosmos DB container name", required = true)
-            @PathVariable String container,
-            
-            @Parameter(description = "Query request with SQL and parameters", required = true)
-            @RequestBody QueryRequest request,
-            
-            @Parameter(description = "Partition key value for optimized query performance")
-            @RequestParam(required = false) String pk,
-            
-            @Parameter(description = "Maximum number of items to return per page")
-            @RequestParam(required = false) Integer maxItemCount,
-            
-            @Parameter(description = "Continuation token for pagination")
-            @RequestParam(required = false) String ct,
-            
-            @Parameter(description = "Request ID for correlation and tracing")
-            @RequestHeader(value = "X-Request-Id", required = false) String requestId,
-            
-            @Parameter(description = "Request timeout in milliseconds")
-            @RequestHeader(value = "X-Timeout-Ms", required = false) Integer timeoutMs) {
+            @Parameter(description = "Cosmos DB container name", required = true) @PathVariable String container,
+            @Parameter(description = "Query request with SQL and parameters", required = true) @RequestBody QueryRequest request,
+            @Parameter(description = "Partition key value for optimized query performance") @RequestParam(required = false) String pk,
+            @Parameter(description = "Maximum number of items to return per page") @RequestParam(required = false) Integer maxItemCount,
+            @Parameter(description = "Continuation token for pagination") @RequestParam(required = false) String ct,
+            @Parameter(description = "Request ID for correlation and tracing") @RequestHeader(value = "X-Request-Id", required = false) String requestId,
+            @Parameter(description = "Request timeout in milliseconds") @RequestHeader(value = "X-Timeout-Ms", required = false) Integer timeoutMs) {
 
         log.info("Received query request for container: {}, requestId: {}", container, requestId);
         log.debug("Query SQL: {}, Params: {}, PK: {}", request.getSql(), request.getParams(), pk);
